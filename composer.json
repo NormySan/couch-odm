@@ -1,0 +1,24 @@
+{
+    "name": "smrt-systems/couch-odm",
+    "description": "A simple object data mapper for CouchDB.",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "SmrtSystems\\Couch\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Christoffer Palm",
+            "email": "christoffer.p@smrtsystems.com"
+        }
+    ],
+    "require": {
+        "symfony/cache": "^8.0",
+        "symfony/http-client": "^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12"
+    }
+}
