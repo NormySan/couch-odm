@@ -1,0 +1,28 @@
+name: couch-odm
+
+services:
+  couchdb:
+    image: couchdb:latest
+    restart: always
+    ports:
+     - "5984:5984"
+    volumes:
+     - couchdb_data:/opt/couchdb/data
+     - couchdb_config:/opt/couchdb/etc/local.d
+     - couchdb_log:/opt/couchdb/var/log
+    environment:
+      COUCHDB_USER: user
+      COUCHDB_PASSWORD: password
+  redis:
+      image: redis:latest
+      ports:
+          - "6379:6379"
+
+volumes:
+  couchdb_data:
+  couchdb_config:
+  couchdb_log:
+
+# curl -X PUT http://user:password@127.0.0.1:5984/_users
+# curl -X PUT http://user:password@127.0.0.1:5984/_replicator
+# curl -X PUT http://user:password@127.0.0.1:5984/_global_changes

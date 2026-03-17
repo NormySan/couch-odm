@@ -16,6 +16,7 @@ use SmrtSystems\Couch\Attribute\Field;
 use SmrtSystems\Couch\Attribute\Id;
 use SmrtSystems\Couch\Attribute\Revision;
 use SmrtSystems\Couch\Exception\MappingException;
+use SmrtSystems\Couch\Type\TypeConverterRegistry;
 
 /**
  * Creates and caches class metadata from PHP attributes.
@@ -27,6 +28,7 @@ final class MetadataFactory implements MetadataFactoryInterface
 
     public function __construct(
         private readonly ?CacheItemPoolInterface $cache = null,
+        private readonly ?TypeConverterRegistry $typeConverterRegistry = null,
         private readonly bool $debug = false,
     ) {}
 
@@ -185,6 +187,27 @@ final class MetadataFactory implements MetadataFactoryInterface
             /** @var Field $field */
             $field = $fieldAttributes[0]->newInstance();
 
+            // Check for explicit converter or auto-detect from registry
+            $converterClass = $field->converter;
+            $valueObjectType = null;
+
+            if ($converterClass === null && $this->typeConverterRegistry !== null) {
+                $valueObjectType = $this->detectValueObjectType($property);
+            }
+
+            // If we have a converter (explicit or detected), use ValueObject type
+            if ($converterClass !== null || $valueObjectType !== null) {
+                return new PropertyMetadata(
+                    propertyName: $propertyName,
+                    fieldName: $field->name ?? $propertyName,
+                    type: PropertyType::ValueObject,
+                    nullable: $field->nullable,
+                    default: $field->default,
+                    targetClass: $valueObjectType,
+                    converterClass: $converterClass, // Only set for explicit converters
+                );
+            }
+
             return new PropertyMetadata(
                 propertyName: $propertyName,
                 fieldName: $field->name ?? $propertyName,
@@ -192,6 +215,27 @@ final class MetadataFactory implements MetadataFactoryInterface
                 nullable: $field->nullable,
                 default: $field->default,
             );
+        }
+
+        return null;
+    }
+
+    /**
+     * Detect if a property type is a registered value object type.
+     *
+     * @return class-string|null
+     */
+    private function detectValueObjectType(ReflectionProperty $property): ?string
+    {
+        $type = $property->getType();
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $typeName = $type->getName();
+
+        if ($this->typeConverterRegistry !== null && $this->typeConverterRegistry->has($typeName)) {
+            return $typeName;
         }
 
         return null;

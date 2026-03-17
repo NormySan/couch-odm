@@ -19,5 +19,6 @@ enum PropertyType: string
     case DateTime = 'datetime';
     case Embedded = 'embedded';
     case EmbeddedCollection = 'embedded_collection';
+    case ValueObject = 'value_object';
     case Mixed = 'mixed';
 }

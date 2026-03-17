@@ -10,7 +10,8 @@ namespace SmrtSystems\Couch\Mapping;
 final class PropertyMetadata
 {
     /**
-     * @param class-string|null $targetClass
+     * @param class-string|null $targetClass Target class for Embedded/EmbeddedCollection types
+     * @param class-string|null $converterClass Converter class for ValueObject types
      */
     public function __construct(
         public readonly string $propertyName,
@@ -19,6 +20,7 @@ final class PropertyMetadata
         public readonly bool $nullable,
         public readonly mixed $default,
         public readonly ?string $targetClass = null,
+        public readonly ?string $converterClass = null,
     ) {}
 
     public function isId(): bool
@@ -39,5 +41,10 @@ final class PropertyMetadata
     public function isEmbeddedCollection(): bool
     {
         return $this->type === PropertyType::EmbeddedCollection;
+    }
+
+    public function isValueObject(): bool
+    {
+        return $this->type === PropertyType::ValueObject;
     }
 }

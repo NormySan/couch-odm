@@ -6,19 +6,26 @@ namespace SmrtSystems\Couch\Hydration;
 
 use DateTimeImmutable;
 use DateTimeInterface;
+use SmrtSystems\Couch\Exception\MappingException;
 use SmrtSystems\Couch\Mapping\ClassMetadata;
 use SmrtSystems\Couch\Mapping\MetadataFactoryInterface;
 use SmrtSystems\Couch\Mapping\PropertyMetadata;
 use SmrtSystems\Couch\Mapping\PropertyType;
+use SmrtSystems\Couch\Type\TypeConverterInterface;
+use SmrtSystems\Couch\Type\TypeConverterRegistry;
 
 /**
  * Maps data between CouchDB documents and PHP objects.
  */
 final class DocumentMapper implements DocumentMapperInterface
 {
+    /** @var array<class-string, TypeConverterInterface<object>> */
+    private array $converterInstances = [];
+
     public function __construct(
         private readonly MetadataFactoryInterface $metadataFactory,
         private readonly Hydrator $hydrator,
+        private readonly ?TypeConverterRegistry $typeConverterRegistry = null,
     ) {}
 
     public function toDocument(string $className, array $data): object
@@ -53,6 +60,20 @@ final class DocumentMapper implements DocumentMapperInterface
         return $value !== null ? (string) $value : null;
     }
 
+    public function setId(object $document, string $id): void {
+        $metadata = $this->metadataFactory->getMetadataFor($document::class);
+
+        if ($metadata->idProperty === null) {
+            throw new MappingException('Document does not have an ID property');
+        }
+
+        $this->hydrator->setValue(
+            document: $document,
+            propertyName: $metadata->idProperty->propertyName,
+            value: $id,
+        );
+    }
+
     public function getRevision(object $document): ?string
     {
         $metadata = $this->metadataFactory->getMetadataFor($document::class);
@@ -64,6 +85,20 @@ final class DocumentMapper implements DocumentMapperInterface
         $value = $this->hydrator->getValue($document, $metadata->revisionProperty->propertyName);
 
         return $value !== null ? (string) $value : null;
+    }
+
+    public function setRevision(object $document, string $revision): void {
+        $metadata = $this->metadataFactory->getMetadataFor($document::class);
+
+        if ($metadata->revisionProperty === null) {
+            throw new MappingException('Document does not have an revision property');
+        }
+
+        $this->hydrator->setValue(
+            document: $document,
+            propertyName: $metadata->revisionProperty->propertyName,
+            value: $revision,
+        );
     }
 
     private function hydrateObject(ClassMetadata $metadata, array $data): object
@@ -113,6 +148,7 @@ final class DocumentMapper implements DocumentMapperInterface
             PropertyType::DateTime => $this->convertToDateTime($value),
             PropertyType::Embedded => $this->hydrateEmbedded($property, $value),
             PropertyType::EmbeddedCollection => $this->hydrateEmbeddedCollection($property, $value),
+            PropertyType::ValueObject => $this->convertValueObjectToPhp($property, $value),
             PropertyType::Mixed => $value,
         };
     }
@@ -127,6 +163,7 @@ final class DocumentMapper implements DocumentMapperInterface
             PropertyType::DateTime => $this->convertFromDateTime($value),
             PropertyType::Embedded => $this->extractEmbedded($property, $value),
             PropertyType::EmbeddedCollection => $this->extractEmbeddedCollection($property, $value),
+            PropertyType::ValueObject => $this->convertValueObjectToDatabase($property, $value),
             default => $value,
         };
     }
@@ -234,5 +271,75 @@ final class DocumentMapper implements DocumentMapperInterface
         }
 
         return $result;
+    }
+
+    /**
+     * Convert a database value to a PHP value object using a type converter.
+     */
+    private function convertValueObjectToPhp(PropertyMetadata $property, mixed $value): mixed
+    {
+        $converter = $this->getConverter($property);
+        if ($converter === null) {
+            return $value;
+        }
+
+        return $converter->toPhpValue($value);
+    }
+
+    /**
+     * Convert a PHP value object to its database representation using a type converter.
+     */
+    private function convertValueObjectToDatabase(PropertyMetadata $property, mixed $value): mixed
+    {
+        $converter = $this->getConverter($property);
+        if ($converter === null) {
+            return $value;
+        }
+
+        return $converter->toDatabaseValue($value);
+    }
+
+    /**
+     * Get the type converter for a property.
+     *
+     * @return TypeConverterInterface<object>|null
+     */
+    private function getConverter(PropertyMetadata $property): ?TypeConverterInterface
+    {
+        // First check for explicit converter class
+        if ($property->converterClass !== null) {
+            return $this->getConverterInstance($property->converterClass);
+        }
+
+        // Then check registry by target class
+        if ($property->targetClass !== null && $this->typeConverterRegistry !== null) {
+            return $this->typeConverterRegistry->get($property->targetClass);
+        }
+
+        return null;
+    }
+
+    /**
+     * Get or create a converter instance from class name.
+     *
+     * @param class-string $converterClass
+     * @return TypeConverterInterface<object>|null
+     */
+    private function getConverterInstance(string $converterClass): ?TypeConverterInterface
+    {
+        if (!isset($this->converterInstances[$converterClass])) {
+            if (!class_exists($converterClass)) {
+                return null;
+            }
+
+            $instance = new $converterClass();
+            if (!$instance instanceof TypeConverterInterface) {
+                return null;
+            }
+
+            $this->converterInstances[$converterClass] = $instance;
+        }
+
+        return $this->converterInstances[$converterClass];
     }
 }

@@ -79,11 +79,6 @@ interface DocumentManagerInterface
     public function refresh(object $document): object;
 
     /**
-     * Check if a document is managed (in the identity map).
-     */
-    public function contains(object $document): bool;
-
-    /**
      * Detach a document from the manager.
      */
     public function detach(object $document): void;

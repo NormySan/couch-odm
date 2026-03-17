@@ -25,9 +25,6 @@ final class DocumentManager implements DocumentManagerInterface
     /** @var SplObjectStorage<object, true> */
     private SplObjectStorage $pendingRemovals;
 
-    /** @var array<string, array<string, object>> class => [id => object] */
-    private array $identityMap = [];
-
     public function __construct(
         private readonly CouchDbClientInterface $client,
         private readonly DocumentMapperInterface $mapper,
@@ -37,71 +34,81 @@ final class DocumentManager implements DocumentManagerInterface
         $this->pendingRemovals = new SplObjectStorage();
     }
 
-    public function find(string $className, string $id): ?object
-    {
-        // Check identity map first
-        $existing = $this->getFromIdentityMap($className, $id);
-        if ($existing !== null) {
-            return $existing;
-        }
-
+    /**
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param string $id The ID of the document to find.
+     *
+     * @return TDocument|null
+     */
+    public function find(string $className, string $id): ?object {
         $database = $this->mapper->getDatabase($className);
 
-        // Check cache
-        if ($this->cache !== null) {
-            $cachedData = $this->cache->get($database, $id);
-            if ($cachedData !== null) {
-                $document = $this->mapper->toDocument($className, $cachedData);
-                $this->addToIdentityMap($className, $id, $document);
-
-                return $document;
-            }
+        $cachedDocument = $this->cache?->get($database, $id);
+        if ($cachedDocument !== null) {
+            return $this->mapper->toDocument($className, $cachedDocument);
         }
 
-        // Fetch from database
         try {
-            $response = $this->client->get($database, $id);
-            $data = $response->getData();
+            $data = $this->client->get($database, $id)->getData();
+            $this->hydrateAndCache($className, $database, $data);
+
+            return $this->mapper->toDocument($className, $data);
         } catch (DocumentNotFoundException) {
             return null;
         }
-
-        // Cache the result
-        $this->cache?->set($database, $id, $data);
-
-        // Hydrate and add to identity map
-        $document = $this->mapper->toDocument($className, $data);
-        $this->addToIdentityMap($className, $id, $document);
-
-        return $document;
     }
 
-    public function findBy(string $className, FindQuery $query): iterable
-    {
+    /**
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param FindQuery $query The query to execute.
+     *
+     * @return iterable<TDocument>
+     */
+    public function findBy(string $className, FindQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
         foreach ($this->client->find($database, $query->getSelector(), $query->getOptions()) as $data) {
             $document = $this->hydrateAndCache($className, $database, $data);
+
             if ($document !== null) {
                 yield $document;
             }
         }
     }
 
-    public function findByRange(string $className, RangeQuery $query): iterable
-    {
+    /**
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param RangeQuery $query The range query to execute.
+     *
+     * @return iterable<TDocument>
+     */
+    public function findByRange(string $className, RangeQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
         foreach ($this->client->allDocs($database, $query->getOptions()) as $data) {
             $document = $this->hydrateAndCache($className, $database, $data);
+
             if ($document !== null) {
                 yield $document;
             }
         }
     }
 
-    public function findByView(string $className, ViewQuery $query): iterable
-    {
+    /**
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param ViewQuery $query The view query to execute.
+     *
+     * @return iterable<TDocument>
+     */
+    public function findByView(string $className, ViewQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
         foreach ($this->client->view($database, $query->getDesignDoc(), $query->getViewName(), $query->getOptions()) as $row) {
@@ -119,26 +126,21 @@ final class DocumentManager implements DocumentManagerInterface
         }
     }
 
-    public function persist(object $document): void
-    {
+    public function persist(object $document): void {
         $this->pendingRemovals->detach($document);
         $this->pendingInserts->attach($document);
     }
 
-    public function remove(object $document): void
-    {
+    public function remove(object $document): void {
         $this->pendingInserts->detach($document);
         $this->pendingRemovals->attach($document);
     }
 
-    public function flush(): void
-    {
-        // Process inserts/updates
+    public function flush(): void {
         foreach ($this->pendingInserts as $document) {
             $this->doSave($document);
         }
 
-        // Process removals
         foreach ($this->pendingRemovals as $document) {
             $this->doRemove($document);
         }
@@ -147,11 +149,9 @@ final class DocumentManager implements DocumentManagerInterface
         $this->pendingRemovals = new SplObjectStorage();
     }
 
-    public function clear(): void
-    {
+    public function clear(): void {
         $this->pendingInserts = new SplObjectStorage();
         $this->pendingRemovals = new SplObjectStorage();
-        $this->identityMap = [];
     }
 
     public function refresh(object $document): object
@@ -172,77 +172,39 @@ final class DocumentManager implements DocumentManagerInterface
 
         // Re-hydrate the document
         $refreshed = $this->mapper->toDocument($className, $freshData);
-        $this->addToIdentityMap($className, $id, $refreshed);
 
         return $refreshed;
     }
 
-    public function contains(object $document): bool
-    {
-        $className = $document::class;
-        $id = $this->mapper->getId($document);
-
-        if ($id === null) {
-            return false;
-        }
-
-        return $this->getFromIdentityMap($className, $id) === $document;
-    }
-
-    public function detach(object $document): void
-    {
-        $className = $document::class;
-        $id = $this->mapper->getId($document);
-
-        if ($id !== null) {
-            $this->removeFromIdentityMap($className, $id);
-        }
-
+    public function detach(object $document): void {
         $this->pendingInserts->detach($document);
         $this->pendingRemovals->detach($document);
     }
 
     /**
-     * Get the underlying CouchDB client.
+     * @todo I don't like the name of this method. Lets think of something better.
      */
-    public function getClient(): CouchDbClientInterface
-    {
-        return $this->client;
-    }
-
-    /**
-     * Get the document mapper.
-     */
-    public function getMapper(): DocumentMapperInterface
-    {
-        return $this->mapper;
-    }
-
-    private function doSave(object $document): void
-    {
-        $className = $document::class;
-        $database = $this->mapper->getDatabase($className);
+    private function doSave(object $document): void {
         $data = $this->mapper->toArray($document);
 
-        $id = $data['_id'] ?? $this->generateId();
+        if (isset($data['_id']) === false) {
+            $id = $this->generateId();
+            $this->mapper->setId($document, $id);
+            $data['_id'] = $id;
+        }
 
-        // Ensure the ID is set in the data
-        $data['_id'] = $id;
-
+        $database = $this->mapper->getDatabase($document::class);
         $response = $this->client->put($database, $id, $data);
         $savedData = $response->getData();
 
-        // Update the document with the new revision
-        $updatedDocument = $this->mapper->toDocument($className, $savedData);
+        $this->mapper->setRevision($document, $response->getRevision());
 
-        // Invalidate and update cache
-        $this->cache?->delete($database, $id);
         $this->cache?->set($database, $id, $savedData);
-
-        // Update identity map with the document that has the new revision
-        $this->addToIdentityMap($className, $id, $updatedDocument);
     }
 
+    /**
+     * @todo I don't like the name of this method. Lets think of something better.
+     */
     private function doRemove(object $document): void
     {
         $className = $document::class;
@@ -258,39 +220,34 @@ final class DocumentManager implements DocumentManagerInterface
 
         // Invalidate cache
         $this->cache?->delete($database, $id);
-
-        // Remove from identity map
-        $this->removeFromIdentityMap($className, $id);
     }
 
+
+
     /**
-     * @param class-string $className
+     *
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className
      * @param array<string, mixed> $data
+     *
+     * @return TDocument|null
+     *
+     * @todo Throw if the document does not contain an ID?
      */
-    private function hydrateAndCache(string $className, string $database, array $data): ?object
-    {
+    private function hydrateAndCache(string $className, string $database, array $data): ?object {
         $id = $data['_id'] ?? null;
 
         if ($id === null) {
             return null;
         }
 
-        // Check identity map
-        $existing = $this->getFromIdentityMap($className, $id);
-        if ($existing !== null) {
-            return $existing;
-        }
-
-        $document = $this->mapper->toDocument($className, $data);
-
         $this->cache?->set($database, $id, $data);
-        $this->addToIdentityMap($className, $id, $document);
 
-        return $document;
+        return $this->mapper->toDocument($className, $data);
     }
 
-    private function generateId(): string
-    {
+    private function generateId(): string {
         // UUID v4 generation
         $data = random_bytes(16);
         $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
@@ -299,27 +256,4 @@ final class DocumentManager implements DocumentManagerInterface
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 
-    /**
-     * @param class-string $className
-     */
-    private function getFromIdentityMap(string $className, string $id): ?object
-    {
-        return $this->identityMap[$className][$id] ?? null;
-    }
-
-    /**
-     * @param class-string $className
-     */
-    private function addToIdentityMap(string $className, string $id, object $document): void
-    {
-        $this->identityMap[$className][$id] = $document;
-    }
-
-    /**
-     * @param class-string $className
-     */
-    private function removeFromIdentityMap(string $className, string $id): void
-    {
-        unset($this->identityMap[$className][$id]);
-    }
 }
