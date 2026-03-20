@@ -10,7 +10,6 @@ namespace SmrtSystems\Couch\Mapping;
 enum PropertyType: string
 {
     case Id = 'id';
-    case Revision = 'revision';
     case String = 'string';
     case Int = 'int';
     case Float = 'float';

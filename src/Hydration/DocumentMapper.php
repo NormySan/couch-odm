@@ -74,33 +74,6 @@ final class DocumentMapper implements DocumentMapperInterface
         );
     }
 
-    public function getRevision(object $document): ?string
-    {
-        $metadata = $this->metadataFactory->getMetadataFor($document::class);
-
-        if ($metadata->revisionProperty === null) {
-            return null;
-        }
-
-        $value = $this->hydrator->getValue($document, $metadata->revisionProperty->propertyName);
-
-        return $value !== null ? (string) $value : null;
-    }
-
-    public function setRevision(object $document, string $revision): void {
-        $metadata = $this->metadataFactory->getMetadataFor($document::class);
-
-        if ($metadata->revisionProperty === null) {
-            throw new MappingException('Document does not have an revision property');
-        }
-
-        $this->hydrator->setValue(
-            document: $document,
-            propertyName: $metadata->revisionProperty->propertyName,
-            value: $revision,
-        );
-    }
-
     private function hydrateObject(ClassMetadata $metadata, array $data): object
     {
         $values = [];
@@ -139,7 +112,6 @@ final class DocumentMapper implements DocumentMapperInterface
 
         return match ($property->type) {
             PropertyType::Id,
-            PropertyType::Revision,
             PropertyType::String => (string) $value,
             PropertyType::Int => (int) $value,
             PropertyType::Float => (float) $value,

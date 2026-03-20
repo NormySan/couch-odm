@@ -53,17 +53,6 @@ final class MetadataFactoryTest extends TestCase
     }
 
     #[Test]
-    public function it_parses_revision_property(): void
-    {
-        $metadata = $this->factory->getMetadataFor(UserDocument::class);
-
-        $this->assertNotNull($metadata->revisionProperty);
-        $this->assertSame('rev', $metadata->revisionProperty->propertyName);
-        $this->assertSame('_rev', $metadata->revisionProperty->fieldName);
-        $this->assertSame(PropertyType::Revision, $metadata->revisionProperty->type);
-    }
-
-    #[Test]
     public function it_parses_simple_field_properties(): void
     {
         $metadata = $this->factory->getMetadataFor(UserDocument::class);
@@ -169,7 +158,7 @@ final class MetadataFactoryTest extends TestCase
         $fieldMapping = $metadata->getFieldMapping();
 
         $this->assertSame('id', $fieldMapping['_id']);
-        $this->assertSame('rev', $fieldMapping['_rev']);
+        $this->assertArrayNotHasKey('_rev', $fieldMapping);
         $this->assertSame('isActive', $fieldMapping['is_active']);
     }
 
@@ -180,7 +169,7 @@ final class MetadataFactoryTest extends TestCase
         $propertyMapping = $metadata->getPropertyMapping();
 
         $this->assertSame('_id', $propertyMapping['id']);
-        $this->assertSame('_rev', $propertyMapping['rev']);
+        $this->assertArrayNotHasKey('rev', $propertyMapping);
         $this->assertSame('is_active', $propertyMapping['isActive']);
     }
 }

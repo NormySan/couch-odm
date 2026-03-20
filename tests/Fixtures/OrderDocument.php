@@ -8,16 +8,12 @@ use SmrtSystems\Couch\Attribute\Document;
 use SmrtSystems\Couch\Attribute\EmbeddedCollection;
 use SmrtSystems\Couch\Attribute\Field;
 use SmrtSystems\Couch\Attribute\Id;
-use SmrtSystems\Couch\Attribute\Revision;
 
 #[Document(database: 'orders', type: 'order')]
 class OrderDocument
 {
     #[Id]
     public string $id;
-
-    #[Revision]
-    public ?string $rev = null;
 
     #[Field(name: 'customer_id')]
     public string $customerId;

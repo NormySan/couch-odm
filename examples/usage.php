@@ -5,7 +5,6 @@ declare(strict_types=1);
 use SmrtSystems\Couch\Attribute\Document;
 use SmrtSystems\Couch\Attribute\Field;
 use SmrtSystems\Couch\Attribute\Id;
-use SmrtSystems\Couch\Attribute\Revision;
 use SmrtSystems\Couch\Cache\DocumentCache;
 use SmrtSystems\Couch\Client\CouchDbClient;
 use SmrtSystems\Couch\DocumentManager;
@@ -20,20 +19,11 @@ use Symfony\Component\HttpClient\HttpClient;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-// Interface with methods that allow you to dynamically configure various things for the ODM.
-// @todo Add dynamically configurable cache key.
-// @todo Add dynamically configurable database name.
-// @todo Support multiple document types in the same database (discriminator).
-// @todo ID is never set on the document when auto-generated on save.
-
 #[Document('users')]
 class User {
 
     #[Id]
     public readonly string $id;
-
-    #[Revision]
-    public string $rev;
 
     #[Field]
     public string $name;

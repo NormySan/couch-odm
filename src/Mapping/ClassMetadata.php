@@ -18,7 +18,6 @@ final class ClassMetadata
         public readonly string $database,
         public readonly ?string $type,
         public readonly ?PropertyMetadata $idProperty,
-        public readonly ?PropertyMetadata $revisionProperty,
         public readonly array $properties,
         public readonly int $loadedAt = 0,
     ) {}

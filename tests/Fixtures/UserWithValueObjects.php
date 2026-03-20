@@ -7,7 +7,6 @@ namespace SmrtSystems\Couch\Tests\Fixtures;
 use SmrtSystems\Couch\Attribute\Document;
 use SmrtSystems\Couch\Attribute\Field;
 use SmrtSystems\Couch\Attribute\Id;
-use SmrtSystems\Couch\Attribute\Revision;
 use SmrtSystems\Couch\Tests\Fixtures\Converter\EmailConverter;
 use SmrtSystems\Couch\Tests\Fixtures\ValueObject\Email;
 use SmrtSystems\Couch\Tests\Fixtures\ValueObject\Money;
@@ -17,9 +16,6 @@ class UserWithValueObjects
 {
     #[Id]
     public string $id;
-
-    #[Revision]
-    public ?string $rev = null;
 
     #[Field]
     public string $name;

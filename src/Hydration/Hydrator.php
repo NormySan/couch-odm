@@ -88,8 +88,6 @@ final class Hydrator
 
     /**
      * Set the value of a specific property on an object.
-     *
-     * @todo Take in the full property object instead of just the name.
      */
     public function setValue(object $document, string $propertyName, mixed $value): void
     {

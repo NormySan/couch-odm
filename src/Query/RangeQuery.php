@@ -11,8 +11,7 @@ final class RangeQuery
 {
     private ?string $startKey = null;
     private ?string $endKey = null;
-    private ?string $startKeyDocId = null;
-    private ?string $endKeyDocId = null;
+    /** @todo This should not be configurable, we should always include docs since we need to hydrate. */
     private bool $includeDocs = true;
     private ?int $limit = null;
     private ?int $skip = null;

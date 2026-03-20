@@ -13,17 +13,37 @@ use SmrtSystems\Couch\Query\FindQuery;
 use SmrtSystems\Couch\Query\RangeQuery;
 use SmrtSystems\Couch\Query\ViewQuery;
 use SplObjectStorage;
+use WeakMap;
 
 /**
  * Main entry point for working with CouchDB documents.
  */
 final class DocumentManager implements DocumentManagerInterface
 {
-    /** @var SplObjectStorage<object, true> */
+    /**
+     * Contains documents that are pending insertion e.g. create or update.
+     *
+     * @var SplObjectStorage<object, true>
+     */
     private SplObjectStorage $pendingInserts;
 
-    /** @var SplObjectStorage<object, true> */
+    /**
+     * Contains documents that are pending removal.
+     *
+     * @var SplObjectStorage<object, true>
+     */
     private SplObjectStorage $pendingRemovals;
+
+    /**
+     * Keeps track of the revision of each loaded document.
+     *
+     * This removes the need for a revision property on the document classes
+     * making them more lightweight. The revision is very much a CouchDB
+     * concept and this doesn't need to leak into the documents.
+     *
+     * @var WeakMap<object, ?string>
+     */
+    private WeakMap $revisions;
 
     public function __construct(
         private readonly CouchDbClientInterface $client,
@@ -32,9 +52,12 @@ final class DocumentManager implements DocumentManagerInterface
     ) {
         $this->pendingInserts = new SplObjectStorage();
         $this->pendingRemovals = new SplObjectStorage();
+        $this->revisions = new WeakMap();
     }
 
     /**
+     * Find a document by its ID.
+     *
      * @template TDocument of object
      *
      * @param class-string<TDocument> $className The fully qualified class name of the document class.
@@ -47,20 +70,24 @@ final class DocumentManager implements DocumentManagerInterface
 
         $cachedDocument = $this->cache?->get($database, $id);
         if ($cachedDocument !== null) {
-            return $this->mapper->toDocument($className, $cachedDocument);
+            $document = $this->mapper->toDocument($className, $cachedDocument);
+            $this->revisions[$document] = $cachedDocument['_rev'] ?? null;
+
+            return $document;
         }
 
         try {
             $data = $this->client->get($database, $id)->getData();
-            $this->hydrateAndCache($className, $database, $data);
 
-            return $this->mapper->toDocument($className, $data);
+            return $this->hydrateAndCache($className, $database, $data);
         } catch (DocumentNotFoundException) {
             return null;
         }
     }
 
     /**
+     * Find documents based on a Mango query.
+     *
      * @template TDocument of object
      *
      * @param class-string<TDocument> $className The fully qualified class name of the document class.
@@ -71,7 +98,9 @@ final class DocumentManager implements DocumentManagerInterface
     public function findBy(string $className, FindQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
-        foreach ($this->client->find($database, $query->getSelector(), $query->getOptions()) as $data) {
+        $results = $this->client->find($database, $query->getSelector(), $query->getOptions());
+
+        foreach ($results as $data) {
             $document = $this->hydrateAndCache($className, $database, $data);
 
             if ($document !== null) {
@@ -81,6 +110,8 @@ final class DocumentManager implements DocumentManagerInterface
     }
 
     /**
+     * Find documents based on a range of IDs.
+     *
      * @template TDocument of object
      *
      * @param class-string<TDocument> $className The fully qualified class name of the document class.
@@ -101,6 +132,8 @@ final class DocumentManager implements DocumentManagerInterface
     }
 
     /**
+     * Find documents based on a CouchDB view.
+     *
      * @template TDocument of object
      *
      * @param class-string<TDocument> $className The fully qualified class name of the document class.
@@ -111,7 +144,9 @@ final class DocumentManager implements DocumentManagerInterface
     public function findByView(string $className, ViewQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
-        foreach ($this->client->view($database, $query->getDesignDoc(), $query->getViewName(), $query->getOptions()) as $row) {
+        $rows = $this->client->view($database, $query->getDesignDoc(), $query->getViewName(), $query->getOptions());
+
+        foreach ($rows as $row) {
             // Views return rows with 'doc' when include_docs is true
             $data = $row['doc'] ?? $row['value'] ?? null;
 
@@ -152,6 +187,7 @@ final class DocumentManager implements DocumentManagerInterface
     public function clear(): void {
         $this->pendingInserts = new SplObjectStorage();
         $this->pendingRemovals = new SplObjectStorage();
+        $this->revisions = new WeakMap();
     }
 
     public function refresh(object $document): object
@@ -172,6 +208,7 @@ final class DocumentManager implements DocumentManagerInterface
 
         // Re-hydrate the document
         $refreshed = $this->mapper->toDocument($className, $freshData);
+        $this->revisions[$refreshed] = $freshData['_rev'] ?? null;
 
         return $refreshed;
     }
@@ -179,6 +216,7 @@ final class DocumentManager implements DocumentManagerInterface
     public function detach(object $document): void {
         $this->pendingInserts->detach($document);
         $this->pendingRemovals->detach($document);
+        unset($this->revisions[$document]);
     }
 
     /**
@@ -193,13 +231,19 @@ final class DocumentManager implements DocumentManagerInterface
             $data['_id'] = $id;
         }
 
+        // Inject revision from internal tracking for updates
+        $rev = $this->revisions[$document] ?? null;
+        if ($rev !== null) {
+            $data['_rev'] = $rev;
+        }
+
         $database = $this->mapper->getDatabase($document::class);
-        $response = $this->client->put($database, $id, $data);
+        $response = $this->client->put($database, $data['_id'], $data);
         $savedData = $response->getData();
 
-        $this->mapper->setRevision($document, $response->getRevision());
+        $this->revisions[$document] = $response->getRevision();
 
-        $this->cache?->set($database, $id, $savedData);
+        $this->cache?->set($database, $data['_id'], $savedData);
     }
 
     /**
@@ -210,7 +254,7 @@ final class DocumentManager implements DocumentManagerInterface
         $className = $document::class;
         $database = $this->mapper->getDatabase($className);
         $id = $this->mapper->getId($document);
-        $rev = $this->mapper->getRevision($document);
+        $rev = $this->revisions[$document] ?? null;
 
         if ($id === null || $rev === null) {
             throw new InvalidArgumentException('Cannot remove a document without ID and revision');
@@ -220,6 +264,7 @@ final class DocumentManager implements DocumentManagerInterface
 
         // Invalidate cache
         $this->cache?->delete($database, $id);
+        unset($this->revisions[$document]);
     }
 
 
@@ -244,7 +289,10 @@ final class DocumentManager implements DocumentManagerInterface
 
         $this->cache?->set($database, $id, $data);
 
-        return $this->mapper->toDocument($className, $data);
+        $document = $this->mapper->toDocument($className, $data);
+        $this->revisions[$document] = $data['_rev'] ?? null;
+
+        return $document;
     }
 
     private function generateId(): string {

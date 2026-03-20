@@ -9,16 +9,12 @@ use SmrtSystems\Couch\Attribute\Embedded;
 use SmrtSystems\Couch\Attribute\EmbeddedCollection;
 use SmrtSystems\Couch\Attribute\Field;
 use SmrtSystems\Couch\Attribute\Id;
-use SmrtSystems\Couch\Attribute\Revision;
 
 #[Document(database: 'users')]
 class UserDocument
 {
     #[Id]
     public string $id;
-
-    #[Revision]
-    public ?string $rev = null;
 
     #[Field]
     public string $name;

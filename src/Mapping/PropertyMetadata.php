@@ -28,11 +28,6 @@ final class PropertyMetadata
         return $this->type === PropertyType::Id;
     }
 
-    public function isRevision(): bool
-    {
-        return $this->type === PropertyType::Revision;
-    }
-
     public function isEmbedded(): bool
     {
         return $this->type === PropertyType::Embedded;

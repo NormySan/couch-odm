@@ -31,7 +31,6 @@ final class DocumentMapperTest extends TestCase
     {
         $data = [
             '_id' => 'user-123',
-            '_rev' => '1-abc',
             'name' => 'John Doe',
             'email' => 'john@example.com',
             'is_active' => true,
@@ -42,7 +41,6 @@ final class DocumentMapperTest extends TestCase
 
         $this->assertInstanceOf(UserDocument::class, $user);
         $this->assertSame('user-123', $user->id);
-        $this->assertSame('1-abc', $user->rev);
         $this->assertSame('John Doe', $user->name);
         $this->assertSame('john@example.com', $user->email);
         $this->assertTrue($user->isActive);
@@ -148,7 +146,6 @@ final class DocumentMapperTest extends TestCase
     {
         $user = new UserDocument();
         $user->id = 'user-123';
-        $user->rev = '1-abc';
         $user->name = 'John Doe';
         $user->email = 'john@example.com';
         $user->isActive = true;
@@ -157,7 +154,7 @@ final class DocumentMapperTest extends TestCase
         $data = $this->mapper->toArray($user);
 
         $this->assertSame('user-123', $data['_id']);
-        $this->assertSame('1-abc', $data['_rev']);
+        $this->assertArrayNotHasKey('_rev', $data);
         $this->assertSame('John Doe', $data['name']);
         $this->assertSame('john@example.com', $data['email']);
         $this->assertTrue($data['is_active']);
@@ -250,19 +247,6 @@ final class DocumentMapperTest extends TestCase
         $user->age = 30;
 
         $this->assertSame('user-123', $this->mapper->getId($user));
-    }
-
-    #[Test]
-    public function it_returns_document_revision(): void
-    {
-        $user = new UserDocument();
-        $user->id = 'user-123';
-        $user->rev = '1-abc';
-        $user->name = 'John';
-        $user->email = 'john@example.com';
-        $user->age = 30;
-
-        $this->assertSame('1-abc', $this->mapper->getRevision($user));
     }
 
     #[Test]

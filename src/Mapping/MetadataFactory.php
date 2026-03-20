@@ -14,7 +14,6 @@ use SmrtSystems\Couch\Attribute\Embedded;
 use SmrtSystems\Couch\Attribute\EmbeddedCollection;
 use SmrtSystems\Couch\Attribute\Field;
 use SmrtSystems\Couch\Attribute\Id;
-use SmrtSystems\Couch\Attribute\Revision;
 use SmrtSystems\Couch\Exception\MappingException;
 use SmrtSystems\Couch\Type\TypeConverterRegistry;
 
@@ -93,7 +92,6 @@ final class MetadataFactory implements MetadataFactoryInterface
 
         $properties = [];
         $idProperty = null;
-        $revisionProperty = null;
 
         foreach ($reflectionClass->getProperties() as $reflectionProperty) {
             $propertyMetadata = $this->parseProperty($reflectionProperty);
@@ -105,8 +103,6 @@ final class MetadataFactory implements MetadataFactoryInterface
 
             if ($propertyMetadata->isId()) {
                 $idProperty = $propertyMetadata;
-            } elseif ($propertyMetadata->isRevision()) {
-                $revisionProperty = $propertyMetadata;
             }
         }
 
@@ -115,7 +111,6 @@ final class MetadataFactory implements MetadataFactoryInterface
             database: $documentAttribute->database,
             type: $documentAttribute->type,
             idProperty: $idProperty,
-            revisionProperty: $revisionProperty,
             properties: $properties,
             loadedAt: time(),
         );
@@ -133,18 +128,6 @@ final class MetadataFactory implements MetadataFactoryInterface
                 fieldName: '_id',
                 type: PropertyType::Id,
                 nullable: $this->isNullable($property),
-                default: null,
-            );
-        }
-
-        // Check for #[Revision] attribute
-        $revisionAttributes = $property->getAttributes(Revision::class);
-        if (count($revisionAttributes) > 0) {
-            return new PropertyMetadata(
-                propertyName: $propertyName,
-                fieldName: '_rev',
-                type: PropertyType::Revision,
-                nullable: true,
                 default: null,
             );
         }

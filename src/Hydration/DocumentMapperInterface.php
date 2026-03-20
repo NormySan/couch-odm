@@ -44,13 +44,4 @@ interface DocumentMapperInterface
      */
     public function setId(object $document, string $id): void;
 
-    /**
-     * Get the document revision from an object.
-     */
-    public function getRevision(object $document): ?string;
-
-    /**
-     * Set the document revision on an object.
-     */
-    public function setRevision(object $document, string $revision): void;
 }
