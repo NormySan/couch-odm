@@ -6,13 +6,16 @@ namespace SmrtSystems\Couch\Query;
 
 /**
  * Fluent builder for CouchDB _all_docs range queries.
+ *
+ * This builder only supports a subset of options provided by the _all_docs
+ * endpoint for the responses to be compatible with the ODM implementation.
  */
-final class RangeQuery
+final class AllQuery
 {
+    public const string HIGH_UNICODE_CHARACTER = "\ufff0";
+
     private ?string $startKey = null;
     private ?string $endKey = null;
-    /** @todo This should not be configurable, we should always include docs since we need to hydrate. */
-    private bool $includeDocs = true;
     private ?int $limit = null;
     private ?int $skip = null;
     private bool $descending = false;
@@ -58,26 +61,6 @@ final class RangeQuery
     }
 
     /**
-     * Set the start key document ID (for pagination within same key).
-     */
-    public function startKeyDocId(string $docId): self
-    {
-        $this->startKeyDocId = $docId;
-
-        return $this;
-    }
-
-    /**
-     * Set the end key document ID (for pagination within same key).
-     */
-    public function endKeyDocId(string $docId): self
-    {
-        $this->endKeyDocId = $docId;
-
-        return $this;
-    }
-
-    /**
      * Query specific document IDs.
      *
      * @param string[] $keys
@@ -85,16 +68,6 @@ final class RangeQuery
     public function keys(array $keys): self
     {
         $this->keys = $keys;
-
-        return $this;
-    }
-
-    /**
-     * Include full documents in the response.
-     */
-    public function includeDocs(bool $include = true): self
-    {
-        $this->includeDocs = $include;
 
         return $this;
     }
@@ -147,7 +120,7 @@ final class RangeQuery
     public function getOptions(): array
     {
         $options = [
-            'include_docs' => $this->includeDocs,
+            'include_docs' => true,
         ];
 
         if ($this->startKey !== null) {
@@ -156,14 +129,6 @@ final class RangeQuery
 
         if ($this->endKey !== null) {
             $options['endkey'] = $this->endKey;
-        }
-
-        if ($this->startKeyDocId !== null) {
-            $options['startkey_docid'] = $this->startKeyDocId;
-        }
-
-        if ($this->endKeyDocId !== null) {
-            $options['endkey_docid'] = $this->endKeyDocId;
         }
 
         if ($this->keys !== null) {

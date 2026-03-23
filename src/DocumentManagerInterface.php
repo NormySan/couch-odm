@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace SmrtSystems\Couch;
 
 use SmrtSystems\Couch\Query\FindQuery;
-use SmrtSystems\Couch\Query\RangeQuery;
+use SmrtSystems\Couch\Query\AllQuery;
 use SmrtSystems\Couch\Query\ViewQuery;
 
 /**
@@ -38,7 +38,7 @@ interface DocumentManagerInterface
      * @param class-string<T> $className
      * @return iterable<T>
      */
-    public function findByRange(string $className, RangeQuery $query): iterable;
+    public function all(string $className, AllQuery $query): iterable;
 
     /**
      * Find documents using a view.

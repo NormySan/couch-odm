@@ -22,13 +22,13 @@ class Order
     public DateTimeImmutable $date;
 
     public function __construct(
-        string            $number,
+        string $number,
         DateTimeImmutable $date = new DateTimeImmutable(),
     ) {
         $this->id = sprintf(
             'order_%s_%s',
-            $number,
             $date->format('Y-m-d'),
+            $number,
         );
 
         $this->number = $number;

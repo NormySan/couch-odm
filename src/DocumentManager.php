@@ -10,7 +10,7 @@ use SmrtSystems\Couch\Client\CouchDbClientInterface;
 use SmrtSystems\Couch\Exception\DocumentNotFoundException;
 use SmrtSystems\Couch\Hydration\DocumentMapperInterface;
 use SmrtSystems\Couch\Query\FindQuery;
-use SmrtSystems\Couch\Query\RangeQuery;
+use SmrtSystems\Couch\Query\AllQuery;
 use SmrtSystems\Couch\Query\ViewQuery;
 use SplObjectStorage;
 use WeakMap;
@@ -115,11 +115,11 @@ final class DocumentManager implements DocumentManagerInterface
      * @template TDocument of object
      *
      * @param class-string<TDocument> $className The fully qualified class name of the document class.
-     * @param RangeQuery $query The range query to execute.
+     * @param AllQuery $query The range query to execute.
      *
      * @return iterable<TDocument>
      */
-    public function findByRange(string $className, RangeQuery $query): iterable {
+    public function all(string $className, AllQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
         foreach ($this->client->allDocs($database, $query->getOptions()) as $data) {
