@@ -55,17 +55,7 @@ final class DocumentManager implements DocumentManagerInterface
         $this->revisions = new WeakMap();
     }
 
-    /**
-     * Find a document by its ID.
-     *
-     * @template TDocument of object
-     *
-     * @param class-string<TDocument> $className The fully qualified class name of the document class.
-     * @param string $id The ID of the document to find.
-     *
-     * @return TDocument|null
-     */
-    public function find(string $className, string $id): ?object {
+    public function get(string $className, string $id): ?object {
         $database = $this->mapper->getDatabase($className);
 
         $cachedDocument = $this->cache?->get($database, $id);
@@ -295,6 +285,9 @@ final class DocumentManager implements DocumentManagerInterface
         return $document;
     }
 
+    /**
+     * @todo The document manager should not generate IDs.
+     */
     private function generateId(): string {
         // UUID v4 generation
         $data = random_bytes(16);

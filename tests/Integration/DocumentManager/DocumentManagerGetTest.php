@@ -9,8 +9,8 @@ use SmrtSystems\Couch\DocumentManager;
 use SmrtSystems\Couch\Tests\Fixtures\User;
 use SmrtSystems\Couch\Tests\Fixtures\UserWithoutRequiredId;
 
-#[CoversMethod(DocumentManager::class, 'find')]
-class DocumentManagerFindTest extends DocumentManagerTestCase
+#[CoversMethod(DocumentManager::class, 'get')]
+class DocumentManagerGetTest extends DocumentManagerTestCase
 {
     public function testIdSetOnFlush(): void {
         $user = new UserWithoutRequiredId(
@@ -28,7 +28,7 @@ class DocumentManagerFindTest extends DocumentManagerTestCase
         $this->persistAndTrack($user);
         $this->manager->flush();
 
-        $foundUser = $this->manager->find(UserWithoutRequiredId::class, $user->id);
+        $foundUser = $this->manager->get(UserWithoutRequiredId::class, $user->id);
 
         $this->assertNotNull($foundUser);
         $this->assertSame($user->id, $foundUser->id);
@@ -36,7 +36,7 @@ class DocumentManagerFindTest extends DocumentManagerTestCase
     }
 
     public function testFindReturnsNullWhenNotFound(): void {
-        $foundUser = $this->manager->find(User::class, 'non-existing-id');
+        $foundUser = $this->manager->get(User::class, 'non-existing-id');
 
         $this->assertNull($foundUser);
     }

@@ -14,13 +14,15 @@ use SmrtSystems\Couch\Query\ViewQuery;
 interface DocumentManagerInterface
 {
     /**
-     * Find a document by ID.
+     * Get a document by its ID.
      *
-     * @template T of object
-     * @param class-string<T> $className
-     * @return T|null
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className
+     *
+     * @return TDocument|null
      */
-    public function find(string $className, string $id): ?object;
+    public function get(string $className, string $id): ?object;
 
     /**
      * Find documents using Mango query.
