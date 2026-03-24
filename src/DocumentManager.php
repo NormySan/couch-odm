@@ -75,16 +75,6 @@ final class DocumentManager implements DocumentManagerInterface
         }
     }
 
-    /**
-     * Find documents based on a Mango query.
-     *
-     * @template TDocument of object
-     *
-     * @param class-string<TDocument> $className The fully qualified class name of the document class.
-     * @param FindQuery $query The query to execute.
-     *
-     * @return iterable<TDocument>
-     */
     public function findBy(string $className, FindQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
@@ -99,16 +89,6 @@ final class DocumentManager implements DocumentManagerInterface
         }
     }
 
-    /**
-     * Find documents based on a range of IDs.
-     *
-     * @template TDocument of object
-     *
-     * @param class-string<TDocument> $className The fully qualified class name of the document class.
-     * @param AllQuery $query The range query to execute.
-     *
-     * @return iterable<TDocument>
-     */
     public function all(string $className, AllQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
@@ -121,16 +101,6 @@ final class DocumentManager implements DocumentManagerInterface
         }
     }
 
-    /**
-     * Find documents based on a CouchDB view.
-     *
-     * @template TDocument of object
-     *
-     * @param class-string<TDocument> $className The fully qualified class name of the document class.
-     * @param ViewQuery $query The view query to execute.
-     *
-     * @return iterable<TDocument>
-     */
     public function findByView(string $className, ViewQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 

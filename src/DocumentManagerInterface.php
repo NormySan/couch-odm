@@ -18,36 +18,46 @@ interface DocumentManagerInterface
      *
      * @template TDocument of object
      *
-     * @param class-string<TDocument> $className
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param string $id The ID of the document to find.
      *
      * @return TDocument|null
      */
     public function get(string $className, string $id): ?object;
 
     /**
-     * Find documents using Mango query.
+     * Find documents based on a Mango query.
      *
-     * @template T of object
-     * @param class-string<T> $className
-     * @return iterable<T>
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param FindQuery $query The query to execute.
+     *
+     * @return iterable<TDocument>
      */
     public function findBy(string $className, FindQuery $query): iterable;
 
     /**
-     * Find documents by ID range.
+     * Get a batch of documents based on a range or list of IDs.
      *
-     * @template T of object
-     * @param class-string<T> $className
-     * @return iterable<T>
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param AllQuery $query The range query to execute.
+     *
+     * @return iterable<TDocument>
      */
     public function all(string $className, AllQuery $query): iterable;
 
     /**
-     * Find documents using a view.
+     * Find documents based on a view.
      *
-     * @template T of object
-     * @param class-string<T> $className
-     * @return iterable<T>
+     * @template TDocument of object
+     *
+     * @param class-string<TDocument> $className The fully qualified class name of the document class.
+     * @param ViewQuery $query The view query to execute.
+     *
+     * @return iterable<TDocument>
      */
     public function findByView(string $className, ViewQuery $query): iterable;
 
