@@ -11,7 +11,9 @@ use SmrtSystems\Couch\Mapping\MetadataFactory;
 use SmrtSystems\Couch\Mapping\PropertyType;
 use SmrtSystems\Couch\Tests\Fixtures\AddressEmbedded;
 use SmrtSystems\Couch\Tests\Fixtures\OrderDocument;
+use SmrtSystems\Couch\Tests\Fixtures\OrderStatus;
 use SmrtSystems\Couch\Tests\Fixtures\UserDocument;
+use SmrtSystems\Couch\Tests\Fixtures\UserRole;
 
 final class MetadataFactoryTest extends TestCase
 {
@@ -126,6 +128,29 @@ final class MetadataFactoryTest extends TestCase
         $this->assertNull($metadata->database);
         $this->assertNull($metadata->type);
         $this->assertNull($metadata->idProperty);
+    }
+
+    #[Test]
+    public function it_parses_string_backed_enum_field(): void
+    {
+        $metadata = $this->factory->getMetadataFor(UserDocument::class);
+
+        $roleProperty = $metadata->getProperty('role');
+        $this->assertNotNull($roleProperty);
+        $this->assertSame(PropertyType::Enum, $roleProperty->type);
+        $this->assertSame(UserRole::class, $roleProperty->targetClass);
+        $this->assertTrue($roleProperty->nullable);
+    }
+
+    #[Test]
+    public function it_parses_int_backed_enum_field(): void
+    {
+        $metadata = $this->factory->getMetadataFor(OrderDocument::class);
+
+        $statusProperty = $metadata->getProperty('status');
+        $this->assertNotNull($statusProperty);
+        $this->assertSame(PropertyType::Enum, $statusProperty->type);
+        $this->assertSame(OrderStatus::class, $statusProperty->targetClass);
     }
 
     #[Test]

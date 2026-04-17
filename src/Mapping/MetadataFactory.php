@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace SmrtSystems\Couch\Mapping;
 
+use BackedEnum;
 use DateTimeInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use ReflectionClass;
+use ReflectionEnum;
 use ReflectionNamedType;
 use ReflectionProperty;
 use SmrtSystems\Couch\Attribute\Document;
@@ -199,6 +201,19 @@ final class MetadataFactory implements MetadataFactoryInterface
                 );
             }
 
+            // Check for backed enum type
+            $enumClass = $this->detectBackedEnumType($property);
+            if ($enumClass !== null) {
+                return new PropertyMetadata(
+                    propertyName: $propertyName,
+                    fieldName: $field->name ?? $propertyName,
+                    type: PropertyType::Enum,
+                    nullable: $field->nullable,
+                    default: $field->default,
+                    targetClass: $enumClass,
+                );
+            }
+
             return new PropertyMetadata(
                 propertyName: $propertyName,
                 fieldName: $field->name ?? $propertyName,
@@ -230,6 +245,32 @@ final class MetadataFactory implements MetadataFactoryInterface
         }
 
         return null;
+    }
+
+    /**
+     * Detect if a property type is a backed enum.
+     *
+     * @return class-string<BackedEnum>|null
+     */
+    private function detectBackedEnumType(ReflectionProperty $property): ?string
+    {
+        $type = $property->getType();
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $typeName = $type->getName();
+
+        if (!enum_exists($typeName)) {
+            return null;
+        }
+
+        $reflectionEnum = new ReflectionEnum($typeName);
+        if (!$reflectionEnum->isBacked()) {
+            return null;
+        }
+
+        return $typeName;
     }
 
     private function resolveType(ReflectionProperty $property, ?string $typeHint): PropertyType

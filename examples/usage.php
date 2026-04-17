@@ -14,12 +14,79 @@ use SmrtSystems\Couch\DocumentManager;
 use SmrtSystems\Couch\Hydration\DocumentMapper;
 use SmrtSystems\Couch\Hydration\Hydrator;
 use SmrtSystems\Couch\Mapping\MetadataFactory;
-use SmrtSystems\Couch\Query\FindQuery;
+use SmrtSystems\Couch\Type\TypeConverterInterface;
+use SmrtSystems\Couch\Type\TypeConverterRegistry;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\HttpClient\HttpClient;
 
 require __DIR__ . '/../vendor/autoload.php';
+
+// ──────────────────────────────────────────────
+// Value Objects
+// ──────────────────────────────────────────────
+
+final class Money
+{
+    public function __construct(
+        public readonly string $amount,
+        public readonly string $currency = 'USD',
+    ) {}
+
+    public static function USD(string $amount): self
+    {
+        return new self($amount, 'USD');
+    }
+
+    public function add(Money $other): self
+    {
+        if ($this->currency !== $other->currency) {
+            throw new \InvalidArgumentException("Cannot add different currencies: {$this->currency} and {$other->currency}");
+        }
+
+        return new self(bcadd($this->amount, $other->amount, 2), $this->currency);
+    }
+
+    public function format(): string
+    {
+        $formatter = new NumberFormatter('en_US', NumberFormatter::CURRENCY);
+        return $formatter->formatCurrency((float) $this->amount, $this->currency);
+    }
+
+    public function __toString(): string
+    {
+        return $this->format();
+    }
+}
+
+final class MoneyConverter implements TypeConverterInterface
+{
+    public function getPhpType(): string
+    {
+        return Money::class;
+    }
+
+    public function toDatabaseValue(mixed $value): ?array
+    {
+        if (!$value instanceof Money) {
+            return null;
+        }
+
+        return [
+            'amount' => $value->amount,
+            'currency' => $value->currency,
+        ];
+    }
+
+    public function toPhpValue(mixed $value): ?Money
+    {
+        if (!is_array($value) || !isset($value['amount'], $value['currency'])) {
+            return null;
+        }
+
+        return new Money((string) $value['amount'], (string) $value['currency']);
+    }
+}
 
 // ──────────────────────────────────────────────
 // Embedded Documents
@@ -67,7 +134,7 @@ class Item
     public string $service;
 
     #[Field]
-    public string $unitPrice;
+    public Money $unitPrice;
 
     #[EmbeddedCollection(Note::class)]
     public array $notes;
@@ -75,7 +142,7 @@ class Item
     public function __construct(
         string $type,
         string $service,
-        string $unitPrice,
+        Money $unitPrice,
         ?array $notes = [],
     ) {
         $this->type = $type;
@@ -120,6 +187,20 @@ class Customer
     }
 }
 
+enum OrderStatus: string {
+    case Received = 'received';
+    case InProgress = 'in_progress';
+    case Completed = 'completed';
+
+    public function canTransitionTo(self $status): bool {
+        return match ($this) {
+            self::Received => in_array($status, [self::InProgress, self::Completed]),
+            self::InProgress => $status == self::Completed,
+            self::Completed => false,
+        };
+    }
+}
+
 #[Document('orders')]
 class Order
 {
@@ -133,11 +214,12 @@ class Order
     public string $customerId;
 
     #[Field]
-    public string $status = 'received' {
-        set(string $status) {
-            if (!in_array($status, ['received', 'in_progress', 'completed'])) {
-                throw new \InvalidArgumentException('Invalid order status');
+    public OrderStatus $status = OrderStatus::Received {
+        set(OrderStatus $status) {
+            if (!$this->status->canTransitionTo($status)) {
+                throw new \InvalidArgumentException("Cannot transition from {$this->status->value} to {$status->value}");
             }
+
             $this->status = $status;
         }
     }
@@ -162,9 +244,13 @@ class Order
         $this->createdAt = new DateTimeImmutable();
     }
 
-    public function total(): float
+    public function total(): Money
     {
-        return array_sum(array_map(fn(Item $item) => $item->unitPrice, $this->items));
+        return array_reduce(
+            $this->items,
+            fn(Money $carry, Item $item) => $carry->add($item->unitPrice),
+            Money::USD('0.00'),
+        );
     }
 }
 
@@ -172,9 +258,11 @@ class Order
 // Bootstrap
 // ──────────────────────────────────────────────
 
+$typeRegistry = new TypeConverterRegistry([new MoneyConverter()]);
+
 $dm = new DocumentManager(
-    client: new CouchDbClient(HttpClient::create(), 'http://localhost:5984', 'admin', 'password'),
-    mapper: new DocumentMapper(new MetadataFactory(), new Hydrator()),
+    client: new CouchDbClient(HttpClient::create(), 'http://localhost:5984', 'user', 'password'),
+    mapper: new DocumentMapper(new MetadataFactory(typeConverterRegistry: $typeRegistry), new Hydrator(), $typeRegistry),
     cache: new DocumentCache(new Psr16Cache(new ArrayAdapter())),
 );
 
@@ -203,15 +291,15 @@ $order = new Order(
     pickupDate: new DateTimeImmutable('+3 days'),
 );
 
-$order->items[] = new Item('Suit Jacket', 'dry_clean', '18.50');
-$order->items[] = new Item('Dress Shirt', 'wash_and_press', '6.00', notes: [new Note('Light starch')]);
-$order->items[] = new Item('Silk Dress', 'dry_clean', '22.00', notes: [new Note('Red wine stain on front')]);
-$order->items[] = new Item('Trousers', 'press', '8.50');
+$order->items[] = new Item('Suit Jacket', 'dry_clean', Money::USD('18.50'));
+$order->items[] = new Item('Dress Shirt', 'wash_and_press', Money::USD('6.00'), notes: [new Note('Light starch')]);
+$order->items[] = new Item('Silk Dress', 'dry_clean', Money::USD('22.00'), notes: [new Note('Red wine stain on front')]);
+$order->items[] = new Item('Trousers', 'press', Money::USD('8.50'));
 
 $dm->persist($order);
 $dm->flush();
 
-echo "Order created: {$order->orderNumber} - {$order->status} - \${$order->total()}\n";
+echo "Order created: {$order->orderNumber} - {$order->status->value} - {$order->total()}\n";
 
 // ──────────────────────────────────────────────
 // Fetch by ID
@@ -221,28 +309,14 @@ $fetched = $dm->get(Order::class, $order->id);
 echo "Fetched order: {$fetched->orderNumber} with " . count($fetched->items) . " items\n";
 
 // ──────────────────────────────────────────────
-// Query with Mango (findBy)
-// ──────────────────────────────────────────────
-
-$query = FindQuery::create()
-    ->where('status', 'received')
-    ->orderBy('created_at', 'desc')
-    ->limit(10);
-
-echo "\nPending orders:\n";
-foreach ($dm->findBy(Order::class, $query) as $pending) {
-    echo "  - {$pending->orderNumber}: {$pending->status} ({$pending->pickupDate->format('M j')})\n";
-}
-
-// ──────────────────────────────────────────────
 // Update status
 // ──────────────────────────────────────────────
 
-$order->status = 'in_progress';
+$order->status = OrderStatus::InProgress;
 $dm->persist($order);
 $dm->flush();
 
-echo "\nOrder {$order->orderNumber} updated to: {$order->status}\n";
+echo "\nOrder {$order->orderNumber} updated to: {$order->status->value}\n";
 
 // ──────────────────────────────────────────────
 // Remove

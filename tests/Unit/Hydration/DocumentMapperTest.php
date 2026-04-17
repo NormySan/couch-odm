@@ -204,7 +204,7 @@ final class DocumentMapperTest extends TestCase
         $order = new OrderDocument();
         $order->id = 'order-123';
         $order->customerId = 'cust-456';
-        $order->status = 'pending';
+        $order->status = \SmrtSystems\Couch\Tests\Fixtures\OrderStatus::Pending;
         $order->total = 99.99;
 
         $item1 = new LineItemEmbedded();

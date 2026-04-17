@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SmrtSystems\Couch\Hydration;
 
+use BackedEnum;
 use DateTimeImmutable;
 use DateTimeInterface;
 use SmrtSystems\Couch\Exception\MappingException;
@@ -118,6 +119,7 @@ final class DocumentMapper implements DocumentMapperInterface
             PropertyType::Bool => (bool) $value,
             PropertyType::Array => (array) $value,
             PropertyType::DateTime => $this->convertToDateTime($value),
+            PropertyType::Enum => $this->convertToEnum($property, $value),
             PropertyType::Embedded => $this->hydrateEmbedded($property, $value),
             PropertyType::EmbeddedCollection => $this->hydrateEmbeddedCollection($property, $value),
             PropertyType::ValueObject => $this->convertValueObjectToPhp($property, $value),
@@ -133,6 +135,7 @@ final class DocumentMapper implements DocumentMapperInterface
 
         return match ($property->type) {
             PropertyType::DateTime => $this->convertFromDateTime($value),
+            PropertyType::Enum => $value instanceof BackedEnum ? $value->value : $value,
             PropertyType::Embedded => $this->extractEmbedded($property, $value),
             PropertyType::EmbeddedCollection => $this->extractEmbeddedCollection($property, $value),
             PropertyType::ValueObject => $this->convertValueObjectToDatabase($property, $value),
@@ -178,6 +181,18 @@ final class DocumentMapper implements DocumentMapperInterface
         }
 
         return null;
+    }
+
+    private function convertToEnum(PropertyMetadata $property, mixed $value): ?BackedEnum
+    {
+        if ($property->targetClass === null) {
+            return null;
+        }
+
+        /** @var class-string<BackedEnum> $enumClass */
+        $enumClass = $property->targetClass;
+
+        return $enumClass::tryFrom($value);
     }
 
     private function hydrateEmbedded(PropertyMetadata $property, mixed $data): ?object

@@ -38,6 +38,11 @@ final class PropertyMetadata
         return $this->type === PropertyType::EmbeddedCollection;
     }
 
+    public function isEnum(): bool
+    {
+        return $this->type === PropertyType::Enum;
+    }
+
     public function isValueObject(): bool
     {
         return $this->type === PropertyType::ValueObject;

@@ -36,7 +36,7 @@ final class Hydrator
                 }
 
                 $property = $reflection->getProperty($propertyName);
-                $property->setValue($instance, $value);
+                $property->setRawValue($instance, $value);
             }
 
             return $instance;
@@ -59,7 +59,7 @@ final class Hydrator
 
         foreach ($reflection->getProperties() as $property) {
             if ($property->isInitialized($document)) {
-                $values[$property->getName()] = $property->getValue($document);
+                $values[$property->getName()] = $property->getRawValue($document);
             }
         }
 
@@ -83,7 +83,7 @@ final class Hydrator
             return null;
         }
 
-        return $property->getValue($document);
+        return $property->getRawValue($document);
     }
 
     /**
@@ -98,7 +98,7 @@ final class Hydrator
         }
 
         $property = $reflection->getProperty($propertyName);
-        $property->setValue($document, $value);
+        $property->setRawValue($document, $value);
     }
 
     /**

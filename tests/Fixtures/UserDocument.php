@@ -28,6 +28,9 @@ class UserDocument
     #[Field]
     public int $age;
 
+    #[Field]
+    public ?UserRole $role = null;
+
     #[Field(type: 'datetime')]
     public ?\DateTimeImmutable $createdAt = null;
 

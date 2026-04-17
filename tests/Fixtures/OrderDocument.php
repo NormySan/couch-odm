@@ -19,7 +19,7 @@ class OrderDocument
     public string $customerId;
 
     #[Field]
-    public string $status = 'pending';
+    public OrderStatus $status = OrderStatus::Pending;
 
     #[Field]
     public float $total = 0.0;
