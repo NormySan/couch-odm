@@ -18,25 +18,21 @@ final class ViewQuery
     private mixed $endKey = null;
     private ?string $startKeyDocId = null;
     private ?string $endKeyDocId = null;
-    private bool $includeDocs = false;
     private ?int $limit = null;
     private ?int $skip = null;
     private bool $descending = false;
-    private ?bool $reduce = null;
-    private bool $group = false;
-    private ?int $groupLevel = null;
     private bool $inclusiveEnd = true;
     private ?bool $stable = null;
     private ?string $stale = null;
 
     public function __construct(
-        private readonly string $designDoc,
-        private readonly string $viewName,
+        private readonly string $name,
+        private readonly string $view,
     ) {}
 
-    public static function create(string $designDoc, string $viewName): self
+    public static function create(string $doc, string $view): self
     {
-        return new self($designDoc, $viewName);
+        return new self($doc, $view);
     }
 
     /**
@@ -113,16 +109,6 @@ final class ViewQuery
     }
 
     /**
-     * Include full documents in the response.
-     */
-    public function includeDocs(bool $include = true): self
-    {
-        $this->includeDocs = $include;
-
-        return $this;
-    }
-
-    /**
      * Set the maximum number of results to return.
      */
     public function limit(int $limit): self
@@ -148,36 +134,6 @@ final class ViewQuery
     public function descending(bool $descending = true): self
     {
         $this->descending = $descending;
-
-        return $this;
-    }
-
-    /**
-     * Enable or disable the reduce function.
-     */
-    public function reduce(bool $reduce = true): self
-    {
-        $this->reduce = $reduce;
-
-        return $this;
-    }
-
-    /**
-     * Group results by key.
-     */
-    public function group(bool $group = true): self
-    {
-        $this->group = $group;
-
-        return $this;
-    }
-
-    /**
-     * Set the group level for array keys.
-     */
-    public function groupLevel(int $level): self
-    {
-        $this->groupLevel = $level;
 
         return $this;
     }
@@ -217,17 +173,17 @@ final class ViewQuery
     /**
      * Get the design document name.
      */
-    public function getDesignDoc(): string
+    public function getName(): string
     {
-        return $this->designDoc;
+        return $this->name;
     }
 
     /**
      * Get the view name.
      */
-    public function getViewName(): string
+    public function getView(): string
     {
-        return $this->viewName;
+        return $this->view;
     }
 
     /**
@@ -237,7 +193,9 @@ final class ViewQuery
      */
     public function getOptions(): array
     {
-        $options = [];
+        $options = [
+            'include_docs' => true,
+        ];
 
         if ($this->key !== null) {
             $options['key'] = $this->key;
@@ -263,10 +221,6 @@ final class ViewQuery
             $options['endkey_docid'] = $this->endKeyDocId;
         }
 
-        if ($this->includeDocs) {
-            $options['include_docs'] = true;
-        }
-
         if ($this->limit !== null) {
             $options['limit'] = $this->limit;
         }
@@ -277,18 +231,6 @@ final class ViewQuery
 
         if ($this->descending) {
             $options['descending'] = true;
-        }
-
-        if ($this->reduce !== null) {
-            $options['reduce'] = $this->reduce;
-        }
-
-        if ($this->group) {
-            $options['group'] = true;
-        }
-
-        if ($this->groupLevel !== null) {
-            $options['group_level'] = $this->groupLevel;
         }
 
         if (!$this->inclusiveEnd) {

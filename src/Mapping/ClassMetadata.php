@@ -15,7 +15,7 @@ final class ClassMetadata
      */
     public function __construct(
         public readonly string $className,
-        public readonly string $database,
+        public readonly ?string $database,
         public readonly ?string $type,
         public readonly ?PropertyMetadata $idProperty,
         public readonly array $properties,

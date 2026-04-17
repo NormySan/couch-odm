@@ -31,10 +31,13 @@ trait IntegrationTestHelper {
         );
     }
 
-    public function createDocumentManager(): DocumentManager {
+    public function createDocumentManager(
+        ?CouchDbClientInterface $client = null,
+        ?DocumentMapperInterface $mapper = null,
+    ): DocumentManager {
         return new DocumentManager(
-            client: $this->createClient(),
-            mapper: $this->createDocumentMapper(),
+            client: $client ?? $this->createClient(),
+            mapper: $mapper ?? $this->createDocumentMapper(),
         );
     }
 

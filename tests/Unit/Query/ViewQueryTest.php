@@ -15,8 +15,8 @@ final class ViewQueryTest extends TestCase
     {
         $query = ViewQuery::create('app', 'by_status');
 
-        $this->assertSame('app', $query->getDesignDoc());
-        $this->assertSame('by_status', $query->getViewName());
+        $this->assertSame('app', $query->getName());
+        $this->assertSame('by_status', $query->getView());
     }
 
     #[Test]

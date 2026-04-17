@@ -19,10 +19,18 @@ class Order
     public readonly string $number;
 
     #[Field]
+    public readonly string $status;
+
+    #[Field]
+    public readonly string $customerId;
+
+    #[Field]
     public DateTimeImmutable $date;
 
     public function __construct(
         string $number,
+        string $status = 'pending',
+        string $customerId = '1',
         DateTimeImmutable $date = new DateTimeImmutable(),
     ) {
         $this->id = sprintf(
@@ -32,6 +40,8 @@ class Order
         );
 
         $this->number = $number;
+        $this->status = $status;
+        $this->customerId = $customerId;
         $this->date = $date;
     }
 }

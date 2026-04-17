@@ -59,7 +59,7 @@ interface DocumentManagerInterface
      *
      * @return iterable<TDocument>
      */
-    public function findByView(string $className, ViewQuery $query): iterable;
+    public function view(string $className, ViewQuery $query): iterable;
 
     /**
      * Mark a document for persistence.

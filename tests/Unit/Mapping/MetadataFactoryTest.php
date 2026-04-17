@@ -118,10 +118,21 @@ final class MetadataFactoryTest extends TestCase
     }
 
     #[Test]
+    public function it_parses_embedded_document_attribute(): void
+    {
+        $metadata = $this->factory->getMetadataFor(AddressEmbedded::class);
+
+        $this->assertSame(AddressEmbedded::class, $metadata->className);
+        $this->assertNull($metadata->database);
+        $this->assertNull($metadata->type);
+        $this->assertNull($metadata->idProperty);
+    }
+
+    #[Test]
     public function it_throws_for_class_without_document_attribute(): void
     {
         $this->expectException(MappingException::class);
-        $this->expectExceptionMessage('Missing #[Document] attribute');
+        $this->expectExceptionMessage('Missing #[Document] or #[EmbeddedDocument] attribute');
 
         $this->factory->getMetadataFor(\stdClass::class);
     }

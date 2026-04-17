@@ -101,10 +101,10 @@ final class DocumentManager implements DocumentManagerInterface
         }
     }
 
-    public function findByView(string $className, ViewQuery $query): iterable {
+    public function view(string $className, ViewQuery $query): iterable {
         $database = $this->mapper->getDatabase($className);
 
-        $rows = $this->client->view($database, $query->getDesignDoc(), $query->getViewName(), $query->getOptions());
+        $rows = $this->client->view($database, $query->getName(), $query->getView(), $query->getOptions());
 
         foreach ($rows as $row) {
             // Views return rows with 'doc' when include_docs is true

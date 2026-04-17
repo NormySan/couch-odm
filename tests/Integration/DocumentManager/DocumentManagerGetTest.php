@@ -17,16 +17,15 @@ class DocumentManagerGetTest extends DocumentManagerTestCase
             name: 'Thomas A. Anderson',
         );
 
-        $this->persistAndTrack($user);
-        $this->manager->flush();
+        $this->persistFlushAndTrack([$user]);
 
         $this->assertNotNull($user->id);
     }
 
     public function testFind(): void {
         $user = new UserWithoutRequiredId(name: 'Morpheus');
-        $this->persistAndTrack($user);
-        $this->manager->flush();
+
+        $this->persistFlushAndTrack([$user]);
 
         $foundUser = $this->manager->get(UserWithoutRequiredId::class, $user->id);
 

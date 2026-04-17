@@ -12,6 +12,7 @@ use ReflectionProperty;
 use SmrtSystems\Couch\Attribute\Document;
 use SmrtSystems\Couch\Attribute\Embedded;
 use SmrtSystems\Couch\Attribute\EmbeddedCollection;
+use SmrtSystems\Couch\Attribute\EmbeddedDocument;
 use SmrtSystems\Couch\Attribute\Field;
 use SmrtSystems\Couch\Attribute\Id;
 use SmrtSystems\Couch\Exception\MappingException;
@@ -83,12 +84,19 @@ final class MetadataFactory implements MetadataFactoryInterface
         $reflectionClass = new ReflectionClass($className);
 
         $documentAttributes = $reflectionClass->getAttributes(Document::class);
-        if (count($documentAttributes) === 0) {
+        $embeddedDocumentAttributes = $reflectionClass->getAttributes(EmbeddedDocument::class);
+
+        $database = null;
+        $type = null;
+
+        if (count($documentAttributes) > 0) {
+            /** @var Document $documentAttribute */
+            $documentAttribute = $documentAttributes[0]->newInstance();
+            $database = $documentAttribute->database;
+            $type = $documentAttribute->type;
+        } elseif (count($embeddedDocumentAttributes) === 0) {
             throw MappingException::noDocumentAttribute($className);
         }
-
-        /** @var Document $documentAttribute */
-        $documentAttribute = $documentAttributes[0]->newInstance();
 
         $properties = [];
         $idProperty = null;
@@ -108,8 +116,8 @@ final class MetadataFactory implements MetadataFactoryInterface
 
         return new ClassMetadata(
             className: $className,
-            database: $documentAttribute->database,
-            type: $documentAttribute->type,
+            database: $database,
+            type: $type,
             idProperty: $idProperty,
             properties: $properties,
             loadedAt: time(),

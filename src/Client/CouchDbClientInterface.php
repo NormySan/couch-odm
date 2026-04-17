@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace SmrtSystems\Couch\Client;
 
+use SmrtSystems\Couch\Client\Data\CreateDesignDocumentInput;
 use SmrtSystems\Couch\Client\Response\BulkResponse;
 use SmrtSystems\Couch\Client\Response\DocumentResponse;
 
 /**
  * Interface for CouchDB HTTP client implementations.
+ *
+ * @phpstan-type DesignDocumentArguments array{
+ *     language?: 'erlang'|'javascript',
+ * }
  */
 interface CouchDbClientInterface
 {
@@ -53,6 +58,16 @@ interface CouchDbClientInterface
      * @return iterable<array<string, mixed>> Yields row arrays
      */
     public function view(string $database, string $design, string $view, array $options = []): iterable;
+
+    /**
+     * Create a design document.
+     */
+    public function createDesignDocument(CreateDesignDocumentInput $input): array;
+
+    /**
+     * Remove a design document.
+     */
+    public function deleteDesignDocument(string $database, string $name): void;
 
     /**
      * Bulk document operations.

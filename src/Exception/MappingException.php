@@ -12,7 +12,7 @@ final class MappingException extends CouchException
     public static function noDocumentAttribute(string $className): self
     {
         return new self(
-            sprintf("Class '%s' is not a valid document. Missing #[Document] attribute.", $className)
+            sprintf("Class '%s' is not a valid document. Missing #[Document] or #[EmbeddedDocument] attribute.", $className)
         );
     }
 

@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace SmrtSystems\Couch\Tests\Integration\DocumentManager;
 
 use PHPUnit\Framework\TestCase;
-use SmrtSystems\Couch\DocumentManager;
+use SmrtSystems\Couch\Client\CouchDbClientInterface;
+use SmrtSystems\Couch\Client\Data\CreateDesignDocumentInput;
+use SmrtSystems\Couch\DocumentManagerInterface;
+use SmrtSystems\Couch\Hydration\DocumentMapperInterface;
 use SmrtSystems\Couch\Tests\Integration\Helper\IntegrationTestHelper;
 
 abstract class DocumentManagerTestCase extends TestCase {
     use IntegrationTestHelper;
 
-    protected DocumentManager $manager;
+    protected CouchDbClientInterface $client;
+    protected DocumentManagerInterface $manager;
+    protected DocumentMapperInterface $mapper;
 
     /**
      * The documents that are created during the test.
@@ -20,17 +25,59 @@ abstract class DocumentManagerTestCase extends TestCase {
      */
     protected array $documents = [];
 
+    /**
+     * The design documents that are created during the test.
+     *
+     * @var array<int, array{ database: string, name: string }>
+     */
+    protected array $designDocuments = [];
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->manager = $this->createDocumentManager();
+        $this->client = $this->createClient();
+        $this->mapper = $this->createDocumentMapper();
+
+        $this->manager = $this->createDocumentManager(
+            $this->client,
+            $this->mapper,
+        );
     }
 
-    protected function persistAndTrack(object $document): void
+    /**
+     * @param list<object> $documents
+     */
+    protected function persistFlushAndTrack(array $documents): void
     {
-        $this->manager->persist($document);
-        $this->documents[] = $document;
+        foreach ($documents as $document) {
+            $this->manager->persist($document);
+            $this->documents[] = $document;
+        }
+
+        $this->manager->flush();
+    }
+
+    /**
+     * @param class-string $className
+     * @param array<string, mixed> $views
+     */
+    protected function createDesignDocument(string $className, string $name, array $views, string $language = 'javascript'): void
+    {
+        $database = $this->mapper->getDatabase($className);
+
+        $this->client->createDesignDocument(
+            input: new CreateDesignDocumentInput(
+                database: $database,
+                name: $name,
+                views: $views,
+            ),
+        );
+
+        $this->designDocuments[] = [
+            'database' => $database,
+            'name' => $name,
+        ];
     }
 
     protected function tearDown(): void
@@ -40,5 +87,9 @@ abstract class DocumentManagerTestCase extends TestCase {
         }
 
         $this->manager->flush();
+
+        foreach ($this->designDocuments as $designDocument) {
+            $this->client->deleteDesignDocument($designDocument['database'], $designDocument['name']);
+        }
     }
 }

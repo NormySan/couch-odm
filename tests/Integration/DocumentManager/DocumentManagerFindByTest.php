@@ -60,48 +60,43 @@ class DocumentManagerFindByTest extends DocumentManagerTestCase
     }
 
     private function createCharacters(): void {
-        $this->persistAndTrack(new Character(
-            id: 'apoc',
-            name: 'Apoc',
-            role: 'crew',
-            birthday: new DateTimeImmutable('1972-12-18'),
-        ));
-
-        $this->persistAndTrack(new Character(
-            id: 'morpheus',
-            name: 'Morpheus',
-            role: 'captain',
-            birthday: new DateTimeImmutable('1961-07-30'),
-        ));
-
-        $this->persistAndTrack(new Character(
-            id: 'neo',
-            name: 'Neo',
-            role: 'the-one',
-            birthday: new DateTimeImmutable('1964-09-02'),
-        ));
-
-        $this->persistAndTrack(new Character(
-            id: 'niobe',
-            name: 'Niobe',
-            role: 'captain',
-            birthday: new DateTimeImmutable('1971-09-18'),
-        ));
-
-        $this->persistAndTrack(new Character(
-            id: 'tank',
-            name: 'Tank',
-            role: 'crew',
-            birthday: new DateTimeImmutable('1967-07-08'),
-        ));
-
-        $this->persistAndTrack(new Character(
-            id: 'smith',
-            name: 'Agent Smith',
-            role: 'agent',
-            birthday: new DateTimeImmutable('1960-04-04'),
-        ));
-
-        $this->manager->flush();
+        $this->persistFlushAndTrack([
+            new Character(
+                id: 'apoc',
+                name: 'Apoc',
+                role: 'crew',
+                birthday: new DateTimeImmutable('1972-12-18'),
+            ),
+            new Character(
+                id: 'morpheus',
+                name: 'Morpheus',
+                role: 'captain',
+                birthday: new DateTimeImmutable('1961-07-30'),
+            ),
+            new Character(
+                id: 'neo',
+                name: 'Neo',
+                role: 'the-one',
+                birthday: new DateTimeImmutable('1964-09-02'),
+            ),
+            new Character(
+                id: 'niobe',
+                name: 'Niobe',
+                role: 'captain',
+                birthday: new DateTimeImmutable('1971-09-18'),
+            ),
+            new Character(
+                id: 'tank',
+                name: 'Tank',
+                role: 'crew',
+                birthday: new DateTimeImmutable('1967-07-08'),
+            ),
+            new Character(
+                id: 'smith',
+                name: 'Agent Smith',
+                role: 'agent',
+                birthday: new DateTimeImmutable('1960-04-04'),
+            ),
+        ]);
     }
 }

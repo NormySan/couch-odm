@@ -23,8 +23,8 @@ class DocumentManagerAllTest extends DocumentManagerTestCase
     /**
      * @param array<string> $expectedOrderNumbers
      */
-    #[DataProvider('findByRangeDataProvider')]
-    public function testFindByRange(AllQuery $query, int $expectedCount, array $expectedOrderNumbers): void {
+    #[DataProvider('allDataProvider')]
+    public function testAll(AllQuery $query, int $expectedCount, array $expectedOrderNumbers): void {
         $result = $this->manager->all(Order::class, $query);
         $orders = iterator_to_array($result);
 
@@ -32,7 +32,7 @@ class DocumentManagerAllTest extends DocumentManagerTestCase
         $this->assertSame($expectedOrderNumbers, array_map(fn (Order $order) => $order->number, $orders));
     }
 
-    public static function findByRangeDataProvider(): array {
+    public static function allDataProvider(): array {
         return [
             'All orders in March' => [
                 'query' => AllQuery::create()
@@ -105,7 +105,7 @@ class DocumentManagerAllTest extends DocumentManagerTestCase
 
     private function createOrders(): void
     {
-        $orders = [
+        $this->persistFlushAndTrack([
             new Order(number: '01', date: new DateTimeImmutable('2026-03-01 10:27')),
             new Order(number: '02', date: new DateTimeImmutable('2026-03-01 11:13')),
             new Order(number: '03', date: new DateTimeImmutable('2026-03-03 14:51')),
@@ -126,12 +126,6 @@ class DocumentManagerAllTest extends DocumentManagerTestCase
             new Order(number: '18', date: new DateTimeImmutable('2026-05-10 12:00')),
             new Order(number: '19', date: new DateTimeImmutable('2026-05-18 14:30')),
             new Order(number: '20', date: new DateTimeImmutable('2026-05-25 17:45')),
-        ];
-
-        foreach ($orders as $order) {
-            $this->persistAndTrack($order);
-        }
-
-        $this->manager->flush();
+        ]);
     }
 }

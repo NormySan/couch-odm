@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SmrtSystems\Couch\Client;
 
 use Generator;
+use SmrtSystems\Couch\Client\Data\CreateDesignDocumentInput;
 use SmrtSystems\Couch\Client\Response\BulkResponse;
 use SmrtSystems\Couch\Client\Response\DocumentResponse;
 use SmrtSystems\Couch\Exception\ConflictException;
@@ -334,5 +335,52 @@ final class CouchDbClient implements CouchDbClientInterface
         }
 
         throw CouchDbException::fromResponse($statusCode, $body);
+    }
+
+    public function getDesignDocument(string $database, string $name): array {
+        $response = $this->request('GET', sprintf('/%s/_design/%s', $database, $name));
+        return $response->toArray();
+    }
+
+    public function createDesignDocument(CreateDesignDocumentInput $input): array
+    {
+        $response = $this->request(
+            method: 'PUT',
+            uri: sprintf('/%s/_design/%s', $input->database, $input->name),
+            options: [
+                'json' => [
+                    'language' => $input->language,
+                    'views' => $input->views,
+                ]
+            ],
+        );
+
+        $content = $response->toArray(throw: false);
+
+        if (!isset($content['id'], $content['rev'])) {
+            throw new CouchDbException(
+                'Failed to create design document',
+                $response->getStatusCode(),
+                $content
+            );
+        }
+
+        return [
+            'id' => $content['id'],
+            'rev' => $content['rev'],
+        ];
+    }
+
+    public function deleteDesignDocument(string $database, string $name): void
+    {
+        $document = $this->getDesignDocument($database, $name);
+
+        $this->request(
+            method: 'DELETE',
+            uri: sprintf('/%s/_design/%s', $database, $name),
+            options: [
+                'query' => ['rev' => $document['_rev']]
+            ],
+        );
     }
 }

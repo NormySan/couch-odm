@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace SmrtSystems\Couch\Tests\Fixtures;
 
-use SmrtSystems\Couch\Attribute\Document;
+use SmrtSystems\Couch\Attribute\EmbeddedDocument;
 use SmrtSystems\Couch\Attribute\Field;
 
-#[Document(database: '_embedded')]
+#[EmbeddedDocument]
 class LineItemEmbedded
 {
     #[Field(name: 'product_id')]
