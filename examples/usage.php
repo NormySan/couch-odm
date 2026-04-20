@@ -17,6 +17,8 @@ use SmrtSystems\Couch\Mapping\MetadataFactory;
 use SmrtSystems\Couch\Type\TypeConverterInterface;
 use SmrtSystems\Couch\Type\TypeConverterRegistry;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\ChainAdapter;
+use Symfony\Component\Cache\Adapter\RedisAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\HttpClient\HttpClient;
 
@@ -93,7 +95,7 @@ final class MoneyConverter implements TypeConverterInterface
 // ──────────────────────────────────────────────
 
 #[EmbeddedDocument]
-class Address
+class Address implements Stringable
 {
     #[Field]
     public string $street;
@@ -109,6 +111,11 @@ class Address
         $this->street = $street;
         $this->city = $city;
         $this->postalCode = $postalCode;
+    }
+
+    public function __toString(): string
+    {
+        return implode(', ', [$this->street, $this->city, $this->postalCode]);
     }
 }
 
@@ -157,7 +164,7 @@ class Item
 // ──────────────────────────────────────────────
 
 #[Document('customers')]
-class Customer
+class Customer implements Stringable
 {
     #[Id]
     public readonly string $id;
@@ -184,6 +191,11 @@ class Customer
         $this->email = $email;
         $this->address = $address;
         $this->createdAt = new DateTimeImmutable();
+    }
+
+    public function __toString(): string
+    {
+        return "$this->name ($this->id)";
     }
 }
 
@@ -260,10 +272,18 @@ class Order
 
 $typeRegistry = new TypeConverterRegistry([new MoneyConverter()]);
 
+$cache = new Psr16Cache(new ChainAdapter(
+    adapters: [
+        new ArrayAdapter(),
+        new RedisAdapter(redis: RedisAdapter::createConnection('redis://127.0.0.1:6379')),
+    ],
+    defaultLifetime: 60 * 60,
+));
+
 $dm = new DocumentManager(
     client: new CouchDbClient(HttpClient::create(), 'http://localhost:5984', 'user', 'password'),
     mapper: new DocumentMapper(new MetadataFactory(typeConverterRegistry: $typeRegistry), new Hydrator(), $typeRegistry),
-    cache: new DocumentCache(new Psr16Cache(new ArrayAdapter())),
+    cache: new DocumentCache($cache),
 );
 
 // ──────────────────────────────────────────────
@@ -271,16 +291,20 @@ $dm = new DocumentManager(
 // ──────────────────────────────────────────────
 
 $customer = new Customer(
-    name: 'Jane Doe',
+    name: 'Thomas A. Anderson',
     phone: '+1-555-0123',
-    email: 'jane@example.com',
+    email: 'thomas.a@example.com',
     address: new Address('742 Evergreen Terrace', 'Springfield', '62704'),
 );
 
 $dm->persist($customer);
 $dm->flush();
 
-echo "Customer created: {$customer->name} ({$customer->id})\n";
+echo "Customer created ({$customer->id}):\n";
+echo "    name: $customer->name\n";
+echo "    email: $customer->email\n";
+echo "    phone: $customer->phone\n";
+echo "    address: $customer->address\n\n";
 
 // ──────────────────────────────────────────────
 // Create a dry cleaning order
@@ -299,24 +323,61 @@ $order->items[] = new Item('Trousers', 'press', Money::USD('8.50'));
 $dm->persist($order);
 $dm->flush();
 
-echo "Order created: {$order->orderNumber} - {$order->status->value} - {$order->total()}\n";
+$orderItemsCount = count($order->items);
+
+echo "Order created ($order->id):\n";
+echo "    number: $order->orderNumber\n";
+echo "    customer: $customer\n";
+echo "    status: {$order->status->value}\n";
+echo "    total: {$order->total()}\n";
+echo "    items: $orderItemsCount\n\n";
 
 // ──────────────────────────────────────────────
 // Fetch by ID
 // ──────────────────────────────────────────────
 
-$fetched = $dm->get(Order::class, $order->id);
-echo "Fetched order: {$fetched->orderNumber} with " . count($fetched->items) . " items\n";
+$fetchedOrder = $dm->get(Order::class, $order->id);
+$fetchedCustomer = $dm->get(Customer::class, $fetchedOrder->customerId);
+
+echo "Fetched order ($fetchedOrder->id):\n";
+echo "    number: $fetchedOrder->orderNumber\n";
+echo "    customer: $fetchedCustomer\n";
+echo "    status: {$fetchedOrder->status->value}\n";
+echo "    total: {$fetchedOrder->total()}\n";
+echo "    items:\n";
+
+foreach ($fetchedOrder->items as $index => $item) {
+    $count = $index + 1;
+    echo "        item $count: $item->type\n";
+    echo "            service: $item->service\n";
+    echo "            price: {$item->unitPrice->format()}\n";
+}
+
+echo "\n";
 
 // ──────────────────────────────────────────────
 // Update status
 // ──────────────────────────────────────────────
 
-$order->status = OrderStatus::InProgress;
-$dm->persist($order);
+$previousOrderStatus = $fetchedOrder->status;
+
+$fetchedOrder->status = OrderStatus::InProgress;
+$dm->persist($fetchedOrder);
 $dm->flush();
 
-echo "\nOrder {$order->orderNumber} updated to: {$order->status->value}\n";
+echo "Changed order status ($fetchedOrder->id):\n";
+echo "    transition: $previousOrderStatus->value -> {$fetchedOrder->status->value}\n\n";
+
+$previousOrderStatus = $fetchedOrder->status;
+
+$fetchedOrder->status = OrderStatus::Completed;
+$dm->persist($fetchedOrder);
+$dm->flush();
+
+echo "Changed order status ($fetchedOrder->id):\n";
+echo "    transition: $previousOrderStatus->value -> {$fetchedOrder->status->value}\n\n";
+
+echo "🚚 Order ready for pickup or delivery!\n";
 
 // ──────────────────────────────────────────────
 // Remove
