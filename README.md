@@ -6,6 +6,8 @@ A simple object data mapper for CouchDB using attributes to define documents and
 
 ## Installation
 
+**Note that this package has not yet been published to packagist so it's not possible to install with the following command.**
+
 ```bash
 composer require smrt-systems/couch-odm
 ```
