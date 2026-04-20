@@ -60,9 +60,9 @@ final class CouchDbClient implements CouchDbClientInterface
         $result = $response->toArray();
 
         return new DocumentResponse([
+            ...$data,
             '_id' => $result['id'],
             '_rev' => $result['rev'],
-            ...$data,
         ]);
     }
 
