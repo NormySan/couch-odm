@@ -1,6 +1,8 @@
 # Couch ODM
 
-A simple object data mapper for CouchDB.
+A simple object data mapper for CouchDB using attributes to define documents and fields. It supports deeply nested data structures, enums and value objects.
+
+**Note that this package is very a work in progress and should not be used inproduction. A lot of additional features are planned and some of the existing features will be reworked to be more in line with how CouchDB works.**
 
 ## Installation
 
