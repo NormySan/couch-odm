@@ -199,11 +199,10 @@ final class DocumentManager implements DocumentManagerInterface
 
         $database = $this->mapper->getDatabase($document::class);
         $response = $this->client->put($database, $data['_id'], $data);
-        $savedData = $response->getData();
 
         $this->revisions[$document] = $response->getRevision();
 
-        $this->cache?->set($database, $data['_id'], $savedData);
+        $this->cache?->set($database, $data['_id'], $response->getData());
     }
 
     /**
